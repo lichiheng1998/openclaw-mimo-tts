@@ -1,0 +1,9 @@
+{
+  "id": "mimo-tts-provider",
+  "name": "MiMo TTS Provider",
+  "description": "Xiaomi MiMo V2 TTS speech provider for OpenClaw. Supports voice, style, and speed control.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false
+  }
+}
