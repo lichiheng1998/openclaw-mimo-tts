@@ -4,7 +4,7 @@
 
 ## 解决了什么问题
 
-OpenClaw 内置的 TTS 提供商（OpenAI、ElevenLabs 等）需要付费 API Key，且不支持小米 MiMo V2 语音合成模型。MiMo V2 提供高质量的中英文语音合成，并通过 `<style>` 标签支持精细的韵律控制——这是小米 API 独有的功能，其他提供商没有提供。本插件填补了这个空白，让 MiMo V2 成为 OpenClaw 中的一级语音提供商。
+OpenClaw 内置的 TTS 提供商（OpenAI、ElevenLabs 等）不兼容小米 MiMo V2 语音合成模型的endpoint。MiMo V2 提供高质量的中英文语音合成，并通过 `<style>` 标签控制语音风格，并支持精细的韵律控制
 
 ## 实现原理
 
@@ -41,17 +41,6 @@ OpenClaw 内置的 TTS 提供商（OpenAI、ElevenLabs 等）需要付费 API Ke
         ▼
    音频 buffer 返回给 OpenClaw 进行播放
 ```
-
-### 样式标签系统
-
-MiMo V2 支持在文本输入中使用内联 `<style>...</style>` 标签控制韵律（情感、节奏、强调）。插件会将配置中的默认样式与 LLM 直接写入的样式标签合并：
-
-| 场景 | 输入 | 发送到 API |
-|------|------|------------|
-| 只有配置样式 | `Hello world` | `<style>calm</style>Hello world` |
-| LLM 样式 + 配置样式 | `<style>happy</style>Great news!` | `<style>happy calm</style>Great news!` |
-| 只有 LLM 样式（无配置） | `<style>sad</style>Oh no...` | `<style>sad</style>Oh no...` |
-| 重复 token | `<style>calm gentle</style>...` + 配置 `calm` | `<style>calm gentle</style>...` |
 
 ### 用户上下文提取
 
@@ -110,24 +99,23 @@ export XIAOMI_API_KEY=你的小米-api-key
 
 插件会优先检查配置文件，找不到再去环境变量中查找。
 
-### Agent 工具：`mimo_tts_say`
+### 注册工具：`/say`
 
-注册后，Agent 可以调用此工具合成语音。该工具只有一个参数：
+注册后，对话中可以通过`/say`可以让agent用语音来回复当前问题。
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `text` | `string` | **是** | 要朗读的回答文本。可以包含 `<style>...</style>` 前缀控制韵律。必须在末尾用 `<user>...</user>` 附带原始用户问题作为上下文。 |
-
-**格式：** `[<style>tokens</style>]回答文本<user>原始问题</user>`
-
-**示例：**
+示例：
 ```
-<style>cheerful</style>好问题！法国的首都是巴黎。<user>法国的首都是哪里？</user>
+发送: /say 今天天气怎么样？
+回复: 语音(<style>...</style>今天天气很不错...)
 ```
 
-### 支持的样式 Token
+### 样式
 
-MiMo V2 支持任意格式的样式 token。常用样式包括：
+详情可以查看mimo-v2-tts官方文档：https://platform.xiaomimimo.com/docs/tts-style-guide
+
+## 支持的样式
+
+MiMo V2 支持常用样式包括：
 
 | Token | 效果 |
 |-------|------|
@@ -140,9 +128,9 @@ MiMo V2 支持任意格式的样式 token。常用样式包括：
 | `whisper` | 安静、私密的语气 |
 | `singing` | 音乐般、旋律化的表达 |
 
-多个 token 可以组合：`<style>calm gentle</style>`
+多个样式可以组合：`<style>calm gentle</style>`
 
-### 支持的语音
+## 支持的语音
 
 | 语音 ID | 说明 |
 |---------|------|
@@ -246,7 +234,7 @@ openclaw gateway restart
 在 OpenClaw 频道（Telegram、Discord 等）中发送 `/say` 命令：
 
 ```
-/say 你好，我现在可以说话了！
+/say 你好，今天天气如何？
 ```
 
 Agent 应该会回复合成后的语音音频。
