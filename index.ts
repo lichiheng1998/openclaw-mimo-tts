@@ -18,7 +18,6 @@
 
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import type { SpeechSynthesisRequest } from "openclaw/plugin-sdk/speech-core";
-import { Type } from "@sinclair/typebox";
 import { resolveConfig } from "./config.js";
 import { callMimoApi } from "./mimo-api.js";
 
@@ -139,23 +138,6 @@ async function synthesize(req: SpeechSynthesisRequest): Promise<{ audioBuffer: B
   };
 }
 
-// ─── Tools ────────────────────────────────────────────────────────────────────
-
-/**
- * mimo_tts_say — triggered by /say
- * The agent answers the question in <question>, then calls this tool with the
- * answer text to synthesize and deliver speech.
- */
-const SaySchema = Type.Object({
-  text: Type.String({
-    description:
-      "The spoken answer text, optionally prefixed with <style>...</style> tags for prosody control, " +
-      "and with the original user question appended as <user>...</user> at the very end. " +
-      "Format: `<style>tokens</style><answer><user>original question</user>` " +
-      "Example: `<style>calm</style>The capital is Paris.<user>What is the capital of France?</user>`",
-  }),
-});
-
 // ─── Plugin entry ─────────────────────────────────────────────────────────────
 
 export default definePluginEntry({
@@ -178,45 +160,6 @@ export default definePluginEntry({
         ),
       synthesize,
     });
-
-    // /say — agent answers the question then calls this tool to speak the answer
-    api.registerTool((ctx) => ({
-      name: "mimo_tts_say",
-      label: "MiMo TTS Say",
-      description:
-        "Synthesize speech for an answer you have composed for a /say request. " +
-        "IMPORTANT: append the original user question at the end of `text` wrapped in " +
-        "<user>...</user> tags so MiMo can use it as conversational context. " +
-        "The <user> tag must come last, after all answer content.\n",
-      parameters: SaySchema,
-      async execute(_toolCallId, params) {
-        const cfg = ctx.runtimeConfig ?? api.config;
-        console.log(`${LOG_PREFIX} [say] Synthesizing ${(params as any).text?.length ?? 0} chars`);
-        const result = await api.runtime.tts.textToSpeech({
-          text: (params as any).text,
-          cfg,
-          channel: ctx.messageChannel,
-        });
-        if (!result.success) {
-          const err = (result as any).error ?? "TTS failed";
-          console.error(`${LOG_PREFIX} [say] TTS error: ${err}`);
-          return {
-            content: [{ type: "text" as const, text: `TTS error: ${err}` }],
-            details: { success: false, error: err },
-          };
-        }
-        console.log(`${LOG_PREFIX} [say] Audio written to ${(result as any).audioPath}`);
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: `Speech synthesized successfully. Audio: ${(result as any).audioPath}`,
-            },
-          ],
-          details: result,
-        };
-      },
-    }));
 
     console.log(`${LOG_PREFIX} Plugin registered successfully`);
   },

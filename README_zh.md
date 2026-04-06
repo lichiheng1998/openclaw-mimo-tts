@@ -23,9 +23,6 @@ OpenClaw 内置的 TTS 提供商（OpenAI、ElevenLabs 等）不兼容小米 MiM
    LLM Agent 组织回答
         │
         ▼
-   调用 mimo_tts_say 工具
-        │
-        ▼
    OpenClaw TTS 运行时路由到 mimo-tts-provider
         │
         ▼
@@ -175,18 +172,12 @@ npx tsc
 ```bash
 # 方式 A：复制
 cp -r . ~/.openclaw/plugins/mimo-tts-provider
-
-# 方式 B：软链接（适合开发——修改后重新编译即可生效）
-ln -s $(pwd) ~/.openclaw/plugins/mimo-tts-provider
 ```
 
 Windows（PowerShell）下：
 ```powershell
 # 复制
 Copy-Item -Recurse . $env:USERPROFILE\.openclaw\plugins\mimo-tts-provider
-
-# 软链接（需要管理员权限）
-New-Item -ItemType SymbolicLink -Path "$env:USERPROFILE\.openclaw\plugins\mimo-tts-provider" -Target (Get-Location).Path
 ```
 
 ### 第五步：配置 OpenClaw
