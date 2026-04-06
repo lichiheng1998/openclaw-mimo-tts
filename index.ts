@@ -17,88 +17,12 @@
  */
 
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import type {
-  SpeechSynthesisRequest,
-  SpeechSynthesisResult,
-} from "openclaw/plugin-sdk/speech-core";
+import type { SpeechSynthesisRequest } from "openclaw/plugin-sdk/speech-core";
 import { Type } from "@sinclair/typebox";
 import { resolveConfig } from "./config.js";
 import { callMimoApi } from "./mimo-api.js";
 
 const LOG_PREFIX = "[mimo-tts]";
-
-// ─── Expressive TTS guide (embedded in tool description) ──────────────────────
-const EXPRESSIVE_TTS_GUIDE = `
-## Expressive MiMo TTS — Style & Markup Guide
-
-Compose natural, expressive speech text. MiMo V2 infers tone from text context automatically —
-add tags only when they meaningfully enhance the output.
-
-### Style Tag — <style>...
-Place at the very beginning. Free-form natural language.
-
-Examples:
-  <style>开心</style>      — cheerful, upbeat
-  <style>温柔</style>      — soft, warm
-  <style>伤心</style>      — sad, heavy
-  <style>林黛玉</style>    — fragile, melancholy character voice
-  <style>东北话</style>    — northeastern dialect
-  <style>悄悄话</style>    — whispering
-  <style>唱歌</style>      — singing (use ALONE, no other tags)
-  <style>开心 温柔</style> — multiple styles combined (space-separated)
-  <style>sad, speaking slowly</style> — English free-form also works
-
-More known values: 悲伤, 生气, 惊讶, 害羞, 感动, 委屈, 紧张, 慵懒, 元气,
-孙悟空, 唐僧, 夹子音, 台湾腔, 撒娇, 霸道, 四川话, 河南话, 粤语, 上海话,
-机器人, 新闻播报, 朗诵, 说唱, 变快, 变慢
-
-### Audio Tags (inline)
-Insert inside the text. Chinese（）or English [] both work.
-
-  （停顿）/（沉默片刻）/（深呼吸）/（叹气）/（长叹一口气）
-  （笑）/（轻笑）/（苦笑）/（哽咽）/（咳嗽）/（剧烈咳嗽）
-  （提高音量喊话）/（压低声音）/（小声）
-  （语速加快）/（碎碎念）/（紧张，深呼吸）
-  （虚弱，气若游丝）/（极其疲惫，有气无力）/（突然激动起来）
-  [pause] / [laugh] / [sigh] / [whisper] / [shout] / [nervous, deep breath]
-
-Combine freely: （虚弱，气若游丝）, [nervous sigh], （突然激动起来）
-
-### Typography as Prosody
-  ALL CAPS → stress emphasis
-  UN-BE-LIEV-ABLE → syllable-by-syllable
-  不不不不不 / sooooo → rhythm & intensity
-  …… → trailing off, hesitation
-  ！！！ → heightened exclamation
-  ？？？ → exasperated disbelief
-  —— → elongation, dramatic pause
-
-### <user> Tag (MANDATORY)
-Append <user>original user words</user> at the very end — MiMo uses it for conversational context.
-
-### Assembly Format
-[<style>styles</style>] answer text with (audio tags) and typography <user>user's question</user>
-
-### Full Examples
-
-1. No style needed (MiMo infers from text):
-  你怎么可以这样对我！我把你当成最信任的人！<user>骂人</user>
-
-2. Style + audio tags:
-  <style>温柔</style>（深呼吸）呼……你知道吗（停顿）我一直都在这里等你。<user>安慰我</user>
-
-3. Character voice:
-  <style>林黛玉</style>我就知道，别人不挑剩下的也不给我。早知他今日来，我就不来了。<user>用林黛玉语气说话</user>
-
-4. Dialect:
-  <style>东北话</style>哎呀妈呀，这外头风刮得，跟小刀刮脸似的！<user>说天气冷</user>
-
-5. Singing:
-  <style>唱歌</style>我怎么变这样，变得这样倔强？<user>唱一段歌</user>
-
-6. English free-form:
-  <style>deeply affectionate, speaking slowly</style>I've been thinking about you all day.<user>say something sweet</user>
-`;
 
 // ─── Valid MiMo voices ────────────────────────────────────────────────────────
 const VALID_VOICES = new Set(["mimo_default", "default_zh", "default_en"]);
@@ -124,7 +48,7 @@ function prependStyle(text: string, style: string): string {
 
 // ─── Synthesize ───────────────────────────────────────────────────────────────
 
-async function synthesize(req: SpeechSynthesisRequest): Promise<SpeechSynthesisResult> {
+async function synthesize(req: SpeechSynthesisRequest): Promise<{ audioBuffer: Buffer; outputFormat: string; fileExtension: string; voiceCompatible: boolean }> {
   const { apiKey, apiBase, defaultVoice, defaultStyle, audioFormat } = resolveConfig(req);
 
   if (!apiKey) {
@@ -227,7 +151,7 @@ const SaySchema = Type.Object({
     description:
       "The spoken answer text, optionally prefixed with <style>...</style> tags for prosody control, " +
       "and with the original user question appended as <user>...</user> at the very end. " +
-      "Format: `[<style>tokens</style>]<answer><user>original question</user>` " +
+      "Format: `<style>tokens</style><answer><user>original question</user>` " +
       "Example: `<style>calm</style>The capital is Paris.<user>What is the capital of France?</user>`",
   }),
 });
@@ -246,9 +170,11 @@ export default definePluginEntry({
     api.registerSpeechProvider({
       id: "mimo-tts-provider",
       label: "MiMo TTS",
-      isConfigured: ({ config }: { config: any }) =>
+      isConfigured: ({ cfg, providerConfig }) =>
         Boolean(
-          config?.messages?.tts?.mimoTts?.apiKey ?? process.env["XIAOMI_API_KEY"]
+          (providerConfig as any)?.apiKey ??
+          (cfg?.messages?.tts?.providers?.["mimo-tts-provider"] as any)?.apiKey ??
+          process.env["XIAOMI_API_KEY"]
         ),
       synthesize,
     });
@@ -261,8 +187,7 @@ export default definePluginEntry({
         "Synthesize speech for an answer you have composed for a /say request. " +
         "IMPORTANT: append the original user question at the end of `text` wrapped in " +
         "<user>...</user> tags so MiMo can use it as conversational context. " +
-        "The <user> tag must come last, after all answer content.\n\n" +
-        EXPRESSIVE_TTS_GUIDE,
+        "The <user> tag must come last, after all answer content.\n",
       parameters: SaySchema,
       async execute(_toolCallId, params) {
         const cfg = ctx.runtimeConfig ?? api.config;
