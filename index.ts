@@ -92,6 +92,12 @@ async function synthesize(req: SpeechSynthesisRequest): Promise<{ audioBuffer: B
     console.log(`${LOG_PREFIX} User context extracted (${userContext.length} chars)`);
   }
 
+  // Strip newlines and backslashes the model sometimes emits
+  finalText = finalText.replace(/\n/g, "").replace(/\\/g, "");
+  if (userContext) {
+    userContext = userContext.replace(/\n/g, "").replace(/\\/g, "");
+  }
+
   // Build messages array
   const messages: Array<{ role: string; content: string }> = [];
   if (userContext) {

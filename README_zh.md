@@ -67,35 +67,6 @@ OpenClaw 内置的 TTS 提供商（OpenAI、ElevenLabs 等）不兼容小米 MiM
 | `style` | `string` | `""`（空） | 否 | 默认样式 token，会在每次合成请求前附加。写成 `<style>{value}</style>` 格式。示例：`calm`、`cheerful gentle`、`sad slow`。 |
 | `format` | `string` | `wav` | 否 | 音频输出格式。直接传给 MiMo API。常用值：`wav`、`mp3`。 |
 
-### 配置示例
-
-```json5
-{
-  messages: {
-    tts: {
-      provider: "mimo-tts-provider",
-      mimoTts: {
-        apiKey: "你的小米-api-key",
-        apiBase: "https://api.xiaomimimo.com/v1",
-        voice: "default_zh",
-        style: "calm",
-        format: "wav"
-      }
-    }
-  }
-}
-```
-
-### 环境变量（备选方式）
-
-不想把 API Key 写进配置文件的话，可以设置环境变量：
-
-```bash
-export XIAOMI_API_KEY=你的小米-api-key
-```
-
-插件会优先检查配置文件，找不到再去环境变量中查找。
-
 ### 注册工具：`/say`
 
 注册后，对话中可以通过`/say`可以让agent用语音来回复当前问题。
@@ -189,11 +160,13 @@ Copy-Item -Recurse . $env:USERPROFILE\.openclaw\plugins\mimo-tts-provider
   messages: {
     tts: {
       provider: "mimo-tts-provider",
-      mimoTts: {
-        apiKey: "你的小米-api-key",
-        voice: "default_zh",
-        style: "calm",
-        format: "wav"
+      providers: {
+        "mimo-tts-provider": {
+          apiKey: "your-xiaomi-api-key",
+          voice: "default_zh",
+          style: "calm",
+          format: "wav"
+        }
       }
     }
   },
@@ -243,7 +216,7 @@ mimo-tts-provider/
 
 ### 核心文件说明
 
-- **`index.ts`** — 主入口。注册 `mimo-tts-provider` 语音提供商和 `mimo_tts_say` Agent 工具。处理样式合并、用户上下文提取和语音验证。
+- **`index.ts`** — 主入口。注册 `mimo-tts-provider` 语音提供商。处理样式合并、用户上下文提取和语音验证。
 - **`config.ts`** — 配置解析。优先级：插件配置 > 全局配置 > 环境变量。日志中会标注配置来源方便调试。
 - **`mimo-api.ts`** — HTTP 客户端。向 MiMo 的 `/v1/chat/completions` 端点发送 POST 请求，支持超时和错误处理。
 
